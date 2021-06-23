@@ -1,4 +1,5 @@
 # Elasticsearch
+Elasticsearch 是一個分佈式的免費開源搜索和分析引擎，適用於包括文本、數字、地理空間、結構化和非結構化數據等在內的所有類型的數據。Elasticsearch 在Apache Lucene 的基礎上開發而成，由Elasticsearch NV（即現在的Elastic）於2010 年首次發布。Elasticsearch 以其簡單的REST 風格API、分佈式特性、速度和可擴展性而聞名，是Elastic Stack 的核心組件；Elastic Stack 是一套適用於數據採集、擴充、存儲、分析和可視化的免費開源工具。人們通常將Elastic Stack 稱為ELK Stack（代指Elasticsearch、Logstash 和Kibana），目前Elastic Stack 包括一系列豐富的輕量型數據採集代理，這些代理統稱為Beats，可用來向Elasticsearch 發送數據。
 ## ES與關聯式資料庫
 倒排索引
 |  Id   | 內容  |
@@ -21,10 +22,10 @@
    單個ES實例稱為一個節點(node),一組節點構成一個集群(cluster).
 
 - 名詞介紹
-    - index:類似於Mysql裡面的一個資料庫,可以往裡面新增資料，查詢資料.
-    - document:資料內容
+    - index:類似於Mysql裡面的一個資料庫,可以往裡面新增資料，查詢資料.(名稱必須是小寫)
+    - document:資料內容,以JSON格式
     - field:數據列,資料屬性
-    - mapping:
+    - mapping:數據的格式或規則, 如:設置某些field的數據類型,是否被索引等等.
 
     |  ElasticSearch   | 關聯資料庫  |
     |  ----  | ----  |
@@ -38,6 +39,8 @@
     一臺伺服器，無法儲存大量的資料，ES把一個index裡面的資料，分為多個shard，分散式的儲存在各個伺服器上面.
     - replica shard(副本分片):
     為了避免primary shard所在的機器掛掉,ES能夠使用副本進行恢復.
+      - 副本分片不與對應的主分放置於同一個節點上.
+      - 搜索也可以在副本分片上運行.
     - routing:
     當index一個document的時候，doc會被存儲到一個主分片中. 透過routing計算應該存放到哪個分片中.查詢時則是將查詢命令同時給予所有分片.
     ```
@@ -48,25 +51,31 @@
 
 ---
 - ES CRUD
-    - Creating indexs
+    - 建立index
     ```sql
+    # PUT /<index>
     PUT /products
-    {
-        "settings": {
-            "number_of_shards": 2,
-            "number_of replicas": 2
-        }
-    }
     ```
-    - Creating document in index
+
+    - 在index中建立document
     ```sql
+    # POST /<index>/_doc
     POST /products/_doc
     {
         "name": "coffee",
         "price": 64,
     }
     ```
-    - Uptating document
+
+    - 取得document
+    ```sql
+    # GET /_index/_type/[ID]
+    GET /products/_doc/10
+    ``` 
+
+    - 更新document
+      - PUT 更新的範圍是整個 document, POST的更新 document 必須已經存在，更新時只會對 document 中相對應的欄位作增量更新 or 對應欄位的修改
+      - 實際上，Elasticsearch document 是無法修改的；而更新這個操作其實是新增一個新的 document，將原有的 _version 加 1 後，舊的 document 被標示為 deletion
     ```sql
     POST /products/_update/10
     {
@@ -75,10 +84,24 @@
         }
     }
     ```
+
     - Deleteing index 
     ```sql
     DELETE /products
     ```
+
+- 查詢表達式
+```sql
+POST movies/_search
+{
+  "query": {
+    "match": {
+      "title": "last christmas"
+    }
+  }
+}
+```
+
 ---
 - Elasticsearch read data使用自適應副本選擇（Adaptive Replica Selection, ARS）的技術.
 - write請求被路由到主分片，然後該主分片驗證操作，在本地執行操作並將其分發到其副本分片.
@@ -100,7 +123,8 @@
 - Dynamic Mapping 可以根據 Document 內容，推算出 term data type 並自動建立 mapping，因此不需要手動制定
 - 但推算的結果不一定會完全正確(例如：地理位置相關訊息可能會推斷錯誤)
 ## 手動Mapping
-```
+
+```sql
 PUT /users
 {
     "mappings" : {
