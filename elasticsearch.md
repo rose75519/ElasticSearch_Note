@@ -14,8 +14,8 @@ Elasticsearch 是一個分佈式的免費開源搜索和分析引擎，適用於
 | ElasticSearch     | 關聯資料庫       |
 | ----------------- | ---------------- |
 | 索引(Index)       | 資料庫(Database) |
-| 文檔(Document)    | 數據行(Column)   |
-| 欄位(Field)       | 數據列(Row)      |
+| 文檔(Document)    | 數據行(Row)   |
+| 欄位(Field)       | 數據列(Column)      |
 | 類型(Type)        | 資料表(Table)    |
 | 參數映射(Mapping) | 模式(Schema)     |
 
@@ -48,11 +48,11 @@ PUT /products
 - 在 index 中建立 document
 
 ```sql
-# POST /<index>/_doc
+# POST /<index>/_doc/自定義<id>
 POST /products/_doc
 {
     "name": "coffee",
-    "price": 64,
+    "price": 64
 }
 ```
 
@@ -76,20 +76,32 @@ POST /products/_update/10
 }
 ```
 
-- Deleteing index
+- 刪除document
 
 ```sql
-DELETE /products
+# DELETE /<index>/_doc/<_id>
+DELETE /products/_doc/10
 ```
 
 - 查詢表達式
 
 ```sql
-POST movies/_search
+POST /movies/_search
 {
   "query": {
     "match": {
       "title": "last christmas"
+    }
+  }
+}
+```
+
+```sql
+POST /movies/_delete_by_query
+{
+  "query": {
+    "match": {
+      "title.keyword": "last christmas"
     }
   }
 }
@@ -155,7 +167,7 @@ POST movies/_search
 
 ---
 
-- Elasticsearch read data 使用自適應副本選擇（Adaptive Replica Selection, ARS）的技術.
+<!-- - Elasticsearch read data 使用自適應副本選擇（Adaptive Replica Selection, ARS）的技術.
 - write 請求被路由到主分片，然後該主分片驗證操作，在本地執行操作並將其分發到其副本分片.
 - write 請求若出現故障情況,使用 primary terms and sequence numbers
 
@@ -170,7 +182,7 @@ POST movies/_search
   從不正確的值中減去一個，然後再次更新乘積，但具有相同的字段值。
   但是“in_stock”現在的值為 5，減去 1 應該為 4
   在這種情況下，可能會出售沒有庫存的產品，從而導致不良的客戶體驗。
-  ![](./images/Selection_002.png)
+  ![](./images/Selection_002.png) -->
 
 ## Dynamic Mapping
 
@@ -178,7 +190,7 @@ POST movies/_search
 - Dynamic Mapping 可以根據 Document 內容，推算出 term data type 並自動建立 mapping，因此不需要手動制定
 - 但推算的結果不一定會完全正確(例如：地理位置相關訊息可能會推斷錯誤)
 
-## 手動 Mapping
+### 手動 Mapping
 
 ```sql
 PUT /users
@@ -215,6 +227,63 @@ POST /users/_search
   "query": {
     "match": {
       "mobile":"12345678"
+    }
+  }
+}
+```
+---
+## Aggregation聚合分析
+Elasticsearch 除了提供搜尋的功能外，也提供了資料統計的功能，也就聚合。聚合提供了多種分析的方式來滿足大多數的資料統計需求。
+
+Metric Aggregation (指標型聚合)
+Bucket Aggregation (桶型聚合)
+Pipeline Aggregation (管道型聚合)
+Matrix Aggregation (矩陣型聚合)
+
+### Metric Aggregation (指標型聚合)
+
+可以用來計算最大值、最小值、平均值、總和等等的功能。
+
+指標型聚合又分為單值分析和多值分析，單值分析只會輸出一個結果，多值分析會輸出多個結果。
+
+單值分析可以使用的功能包含 :
+
+- min : 最小值
+- max : 最大值
+- avg : 平均值
+- sum : 總合
+- value_count : 指定欄位的個數
+- cardinality : 基數值，就是不重複的數值的個數，類似 SQL 的 distinct count
+
+```sql
+POST /fdmrecord/_search?scroll=1m
+{
+  "query": {
+    "constant_score": {
+      "filter": {
+      "bool": {
+          "must" : [
+            {
+              "term": {
+                "robotName.keyword": "BC2123020"
+              }
+            },
+            {
+              "term": {
+                "projectName.keyword": "TM5XXC_700_SYNC_48hr_6kg_V5.prog"
+              }
+              
+            }
+          ]
+        }
+      }
+    }
+  },
+  "aggs": {
+    "linkloss_sum": { 
+      "sum": { 
+        "field": "linkloss"    
+      } 
     }
   }
 }
